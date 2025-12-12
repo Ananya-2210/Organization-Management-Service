@@ -5,6 +5,7 @@ Each organization gets its own isolated database, while a **master database** st
 
 ---
 ## Architecture Diagram
+
 flowchart TB
 A[Client/Swagger UI]
 subgraph FastAPI[FastAPI Backend]
