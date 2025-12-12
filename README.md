@@ -4,6 +4,70 @@ A backend service for managing organizations in a **multi-tenant architecture** 
 Each organization gets its own isolated database, while a **master database** stores global metadata and admin credentials.
 
 ---
+## Architecture Diagram
+flowchart TB
+A[Client/Swagger UI]
+subgraph FastAPI[FastAPI Backend]
+    B[POST /org/create]
+    C[GET /org/get]
+    D[PUT /org/update]
+    E[DELETE /org/delete]
+    F[POST /admin/login]
+    G[JWT Auth Module]
+    H[Argon2 Password Hashing]
+end
+
+subgraph MongoDB[MongoDB Cluster]
+    I[master_database]
+    J[org_Tenant1]
+    K[org_Tenant2]
+    L[org_Tenant3]
+end
+
+A -->|HTTP Requests| B
+A -->|HTTP Requests| C
+A -->|HTTP Requests| D
+A -->|HTTP Requests| E
+A -->|HTTP Requests| F
+
+B -->|Store Metadata| I
+B -->|Create DB| J
+C -->|Fetch Metadata| I
+D -->|Update Metadata| I
+D -->|Migrate Data| J
+E -->|Delete Metadata| I
+E -->|Drop DB| J
+F -->|Validate Credentials| I
+
+G -->|Return JWT Token| A
+H -->|Hash Passwords| I
+
+style A fill:#64b5f6,color:#fff
+style FastAPI fill:#fff3e0
+style MongoDB fill:#e8f5e9
+style I fill:#66bb6a,color:#fff
+style J fill:#66bb6a,color:#fff
+style K fill:#66bb6a,color:#fff
+style L fill:#66bb6a,color:#fff
+
+
+
+### Key Components:
+
+- **Client Layer**: Users interact via Swagger UI or any HTTP client
+- **API Layer**: FastAPI handles all REST endpoints with JWT authentication
+- **Data Layer**: 
+  - **master_database**: Stores organization metadata and admin credentials
+  - **Tenant Databases**: Each organization has isolated data storage
+
+### Request Flow:
+
+1. Client sends HTTP requests to FastAPI endpoints
+2. POST /org/create stores metadata in master DB and creates new tenant database
+3. POST /admin/login validates credentials and issues JWT token
+4. Protected operations (update/delete) require JWT authentication
+5. All passwords are hashed with Argon2 before storage
+
 
 ## Setup Instructions
 
