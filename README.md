@@ -301,17 +301,6 @@ All tests currently pass.
 
 ---
 
-## Time Spent (Fill In)
-
-- Project setup & environment: _x_ hours  
-- Core endpoints implementation: _x_ hours  
-- Authentication & JWT: _x_ hours  
-- Debugging & manual testing: _x_ hours  
-- Automated tests (pytest): _x_ hours  
-- Documentation & architecture diagram: _x_ hours  
-
----
-
 ## How to Use This Project for the Assignment
 
 1. Implement backend as described (already done in this repo).
