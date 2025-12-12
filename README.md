@@ -1,328 +1,327 @@
-Organization Management Service (Backend Intern Assignment)
-A backend service for managing organizations in a multi-tenant architecture using FastAPI and MongoDB. Each organization gets its own isolated database, while a master database stores global metadata and admin credentials.
+# Organization Management Service (Backend Intern Assignment)
 
-Setup Instructions
-Prerequisites
-Python 3.11+
+A backend service for managing organizations in a **multi-tenant architecture** using **FastAPI** and **MongoDB**.  
+Each organization gets its own isolated database, while a **master database** stores global metadata and admin credentials.
 
-MongoDB Community Server or MongoDB Atlas account
+---
 
-pip (Python package manager)
+## Setup Instructions
 
-Git (optional but recommended)
+### Prerequisites
 
-1. Clone the Repository
-bash
+- Python 3.11+
+- MongoDB (local Community Server or MongoDB Atlas)
+- `pip` (Python package manager)
+- Git (optional but recommended)
+
+### 1. Clone the Repository
+
 git clone <your-repo-url>.git
 cd <your-repo-folder>
-2. Create and Activate Virtual Environment (recommended)
-bash
-python -m venv venv
-# Windows
-venv\Scripts\activate
-# macOS / Linux
-source venv/bin/activate
-3. Install Dependencies
-bash
-pip install -r requirements.txt
-4. Configure Environment Variables
-Create a .env file in the project root:
 
-text
+
+### 2. Create and Activate Virtual Environment (recommended)
+
+python -m venv venv
+
+Windows
+venv\Scripts\activate
+
+macOS / Linux
+source venv/bin/activate
+
+
+### 3. Install Dependencies
+
+pip install -r requirements.txt
+
+### 4. Configure Environment Variables
+
+Create a `.env` file in the project root:
 MONGODB_URL=mongodb://localhost:27017/
 MASTER_DB_NAME=master_database
 SECRET_KEY=replace-with-a-long-random-secret-key
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
-If you use MongoDB Atlas, replace MONGODB_URL with your Atlas connection string.
 
-5. Run the Application
-bash
+
+If you use MongoDB Atlas, replace `MONGODB_URL` with your Atlas connection string.
+
+### 5. Run the Application
 uvicorn app.main:app --reload
+
+
 The API will be available at:
 
-Base URL: http://127.0.0.1:8000/
+- Base URL: `http://127.0.0.1:8000/`
+- Swagger UI: `http://127.0.0.1:8000/docs`
+- ReDoc: `http://127.0.0.1:8000/redoc`
 
-Interactive docs (Swagger UI): http://127.0.0.1:8000/docs
+---
 
-Alternative docs (ReDoc): http://127.0.0.1:8000/redoc
+## Tech Stack Used
 
-Tech Stack Used
-Language: Python
+- **Language:** Python
+- **Framework:** FastAPI
+- **Database:** MongoDB (PyMongo)
+- **Auth:** JWT (JSON Web Tokens)
+- **Password Hashing:** Argon2 (Passlib)
+- **Config Management:** pydantic-settings
+- **Server:** Uvicorn
+- **Testing:** pytest, FastAPI TestClient
 
-Framework: FastAPI
+---
 
-Database: MongoDB (PyMongo)
+## API Endpoints
 
-Auth: JWT (JSON Web Tokens)
+### 1. Create Organization
 
-Password Hashing: Argon2 (via Passlib)
+- **Method:** `POST`
+- **URL:** `/org/create`
 
-Config Management: pydantic-settings
-
-Environment: Uvicorn ASGI server
-
-Testing: pytest, FastAPI TestClient
-
-API Endpoints
-1. Create Organization
-Method: POST
-
-URL: /org/create
-
-Request body:
-
-json
+**Request body example:**
 {
-  "organization_name": "Shiney",
-  "email": "shiney@gunnu.com",
-  "password": "strongpassword123"
+"organization_name": "Shiney",
+"email": "shiney@gunnu.com",
+"password": "strongpassword123"
 }
-Behavior:
 
-Validates that organization_name does not already exist.
+**Behavior:**
 
-Creates a new database and collection for the organization (e.g. org_Shiney).
+- Validates that `organization_name` does not already exist.
+- Creates a new database and collection for the organization (e.g. `org_Shiney`).
+- Inserts an initial document so the DB appears in MongoDB tools.
+- Stores metadata in the master database (`master_database.organizations`):
+  - `organization_name`
+  - `collection_name`
+  - `admin_email`
+  - `admin_password` (hashed using Argon2)
+  - `created_at`
+- Returns basic organization metadata.
 
-Inserts an initial document into the organization collection (so DB appears in MongoDB).
+---
 
-Stores metadata in the master database (master_database.organizations):
+### 2. Get Organization by Name
 
-organization_name
+- **Method:** `GET`
+- **URL:** `/org/get`
+- **Query parameter:** `organization_name`
 
-collection_name
+**Behavior:**
 
-admin_email
+- Looks up the organization in the master database by `organization_name`.
+- Returns organization metadata (excluding the hashed password).
+- Returns **404** if the organization does not exist.
 
-admin_password (hashed)
+---
 
-created_at
+### 3. Update Organization
 
-Returns basic organization metadata.
+- **Method:** `PUT`
+- **URL:** `/org/update`
 
-2. Get Organization by Name
-Method: GET
-
-URL: /org/get
-
-Query parameter: organization_name
-
-Behavior:
-
-Looks up the organization in the master database by organization_name.
-
-Returns organization metadata (excluding the hashed password).
-
-Returns 404 if the organization does not exist.
-
-3. Update Organization
-Method: PUT
-
-URL: /org/update
-
-Request body:
-
-json
+**Request body example:**
 {
-  "organization_name": "ShineyRenamed",
-  "email": "shiney@gunnu.com",
-  "password": "newpassword123"
+"organization_name": "ShineyRenamed",
+"email": "shiney@gunnu.com",
+"password": "newpassword123"
 }
-Behavior:
 
-Identifies the organization by admin_email (the email field).
+**Behavior:**
 
-Validates that the new organization_name does not conflict with any other existing organization.
+- Identifies the organization by `admin_email` (the `email` field).
+- Validates that the new `organization_name` does not conflict with any other existing organization.
+- Creates a new database/collection for the new name.
+- Migrates all data from the old organization collection to the new one.
+- Updates in the master database:
+  - `organization_name`
+  - `collection_name`
+  - `admin_email` (if changed)
+  - `admin_password` (re-hashed)
+- Drops the old organization database if the name changed.
+- Returns a success message.
 
-Creates a new database/collection for the new name.
+---
 
-Copies all documents from the old organization collection into the new one.
+### 4. Delete Organization
 
-Updates in the master database:
+- **Method:** `DELETE`
+- **URL:** `/org/delete`
+- **Query parameter:** `organization_name`
+- **Auth:** Requires Bearer JWT token
 
-organization_name
+**Behavior:**
 
-collection_name
+- Protected using HTTP Bearer authentication (JWT).
+- Verifies the JWT and extracts `organization_id` from the token payload.
+- Ensures the authenticated admin belongs to the organization being deleted.
+- Drops the organization database.
+- Deletes the organization document from the master database.
+- Returns a success message.
 
-admin_email (if changed)
+---
 
-admin_password (re-hashed)
+### 5. Admin Login
 
-Drops the old organization database if the name changed.
+- **Method:** `POST`
+- **URL:** `/admin/login`
 
-Returns a success message.
-
-4. Delete Organization
-Method: DELETE
-
-URL: /org/delete
-
-Query parameter: organization_name
-
-Auth: Requires Bearer JWT token
-
-Behavior:
-
-Uses HTTP Bearer auth (JWT) to protect the route.
-
-Verifies the JWT, extracts organization_id from the payload.
-
-Ensures that the authenticated admin belongs to the same organization being deleted.
-
-Drops the organization database.
-
-Removes the organization entry from the master database.
-
-Returns a success message.
-
-5. Admin Login
-Method: POST
-
-URL: /admin/login
-
-Request body:
-
-json
+**Request body example:**
 {
-  "email": "shiney@gunnu.com",
-  "password": "strongpassword123"
+"email": "shiney@gunnu.com",
+"password": "strongpassword123"
 }
-Behavior:
 
-Looks up admin by admin_email in master database.
 
-Verifies the password using Argon2 hashing.
+**Behavior:**
 
-On success, returns a JWT containing:
+- Looks up the admin by `admin_email` in the master database.
+- Verifies the password using Argon2 hashing.
+- On success, returns a JWT containing:
+  - `admin_id`
+  - `organization_id` (organization name)
+  - `email`
+- On failure, returns **401 Unauthorized**.
 
-admin_id
+---
 
-organization_id (organization name)
+## Using the Authorization Button in Swagger UI
 
-email
+The project integrates HTTP Bearer authentication with Swagger UI to make testing protected endpoints easy.
 
-On failure, returns 401 Unauthorized.
+1. Open `http://127.0.0.1:8000/docs`.
+2. Call **`POST /admin/login`** with a valid email and password to get an `access_token`.
+3. Click the **“Authorize”** button (padlock icon in the top-right of Swagger UI).
+4. In the popup for the Bearer auth scheme, paste **only** the raw JWT token (no need to type `Bearer`).
+5. Click **“Authorize”**, then **“Close”**.
 
-Using the Authorization Button in Swagger UI
-The project uses HTTP Bearer authentication integrated into the interactive docs:
+After this, Swagger will automatically include the `Authorization: Bearer <token>` header for all protected endpoints such as **`DELETE /org/delete`**. You no longer need to manually add the header to each request.
 
-Open http://127.0.0.1:8000/docs.
+---
 
-Call POST /admin/login with valid credentials to receive an access_token.
+## Multi-Tenant Architecture Design
 
-Click the “Authorize” button (padlock icon at the top-right of the docs).
+### Master Database
 
-In the popup, in the field for the Bearer scheme, paste only the raw JWT token (no need to type Bearer manually).
+A dedicated database (`MASTER_DB_NAME`, e.g. `master_database`) stores global metadata:
 
-Click “Authorize”, then “Close”.
+- `organizations` collection:
+  - `_id`
+  - `organization_name`
+  - `collection_name`
+  - `admin_email`
+  - `admin_password` (hashed)
+  - `created_at`
 
-After this, all protected endpoints (like DELETE /org/delete) will automatically send the Authorization header with your token. You do not need to manually type the header for each request.
+This supports quick lookup of tenants and their corresponding databases/collections.
 
-Multi-Tenant Architecture Design
-Master Database
-A dedicated database (MASTER_DB_NAME, e.g. master_database) stores global metadata:
+### Dynamic Organization Databases
 
-organizations collection:
-
-_id
-
-organization_name
-
-collection_name
-
-admin_email
-
-admin_password (hashed)
-
-created_at
-
-This allows quickly finding any organization and its corresponding dynamic database/collection.
-
-Dynamic Organization Databases
 For each organization:
 
-A separate database is created: org_<organization_name>.
+- A separate database is created: `org_<organization_name>`.
+- Inside that database, a main collection (e.g. `data`) holds tenant-specific data.
+- An `_initialized` document is inserted to ensure the database is materialized and visible in MongoDB Compass.
 
-Within that database, a main collection (e.g. data) holds tenant-specific data.
+**Benefits:**
 
-An _initialized document is inserted to ensure the database appears in MongoDB tools.
+- Logical isolation of each tenant’s data.
+- Easier backup/restore per organization.
+- Flexibility to evolve tenant schemas independently.
 
-This design provides:
+---
 
-Logical data isolation per organization.
+## Authentication & Security
 
-Easier backup/restore per tenant.
+- **JWT Authentication**
+  - Admin login issues a signed JWT.
+  - Protected routes use HTTP Bearer auth and verify the token.
+  - Token payload includes both admin identification and organization identifier.
 
-Flexibility to extend each tenant schema independently.
+- **Password Hashing**
+  - Uses Argon2 via Passlib.
+  - Plain-text passwords are never stored; only secure hashes are persisted.
 
-Authentication & Security
-JWT Authentication
+- **Authorization Rules**
+  - Delete operation checks that the token’s `organization_id` matches the organization being deleted.
+  - Prevents one tenant from deleting or modifying another tenant’s organization.
 
-Admin login returns a signed JWT.
+---
 
-Protected routes use HTTP Bearer auth and verify the token.
+## Tests
 
-Token payload includes admin and organization identifiers.
+Automated tests are implemented with **pytest** and FastAPI’s `TestClient`.
 
-Password Hashing
-
-Uses Argon2 via Passlib.
-
-Only hashed passwords are stored; plain-text passwords are never persisted.
-
-Authorization
-
-Delete operation checks that the token’s organization_id matches the requested organization.
-
-Prevents one tenant’s admin from modifying another tenant’s data.
-
-Tests
-Automated tests are implemented using pytest and FastAPI’s TestClient.
-
-To run tests:
-
-bash
+Run tests with:
 pytest -v
-The test suite covers:
 
-Organization creation (success + duplicate name)
 
-Get organization (success + not found)
+### Covered Scenarios
 
-Admin login (success, wrong password, non-existent user)
-
-Update organization (success + not found)
-
-Delete organization (with and without authorization)
-
-Validation errors (invalid email, missing fields)
+- Create organization (success + duplicate name validation)
+- Get organization (success + 404 not found)
+- Admin login:
+  - Success
+  - Wrong password
+  - Non-existent email
+- Update organization (success + not found)
+- Delete organization:
+  - Without auth token (edge case)
+  - With valid auth token (success)
+- Validation:
+  - Invalid email format
+  - Missing required fields
 
 All tests currently pass.
 
-Key Design Choices & Trade-Offs
-FastAPI + MongoDB
+---
 
-Fast development, async-friendly, and JSON-native.
+## Key Design Choices & Trade-Offs
 
-MongoDB is a good fit for flexible, tenant-specific data.
+- **FastAPI + MongoDB**
+  - Very productive for JSON APIs, async-friendly.
+  - MongoDB matches well with flexible tenant-specific data.
+  - Trade-off: Complex relational joins across tenants are not the focus.
 
-Trade-off: Not focused on complex relational joins.
+- **Per-Organization Database**
+  - Strong logical isolation and clear data separation.
+  - Trade-off: At large scale, many databases can add management and resource overhead.
 
-Per-Organization Database
+- **Master Metadata Database**
+  - Central point for organization and admin metadata.
+  - Trade-off: Critical component that must be backed up and monitored carefully.
 
-Strong logical isolation and clean separation for each tenant.
+---
 
-Trade-off: At very large scale, many databases may increase resource usage and connection overhead.
+## Assumptions
 
-Master Metadata Database
+- All organizations share the same MongoDB cluster/instance; each has its own database name.
+- Per-organization connection details are not stored separately because a single cluster is sufficient for this assignment.
+- Admins are scoped per organization; cross-tenant admin roles are out of scope.
 
-Central point for managing organizations and admin credentials.
+---
 
-Trade-off: Needs careful backup and monitoring because it’s critical for tenant discovery and authentication.
+## Time Spent (Fill In)
 
-Assumptions
-All organizations share the same MongoDB cluster/instance; each tenant has its own database within that cluster.
+- Project setup & environment: _x_ hours  
+- Core endpoints implementation: _x_ hours  
+- Authentication & JWT: _x_ hours  
+- Debugging & manual testing: _x_ hours  
+- Automated tests (pytest): _x_ hours  
+- Documentation & architecture diagram: _x_ hours  
 
-Connection details per organization are not separated because a single cluster is sufficient for this assignment.
+---
 
-Admin users are defined per organization; cross-tenant admin roles were not required.
+## How to Use This Project for the Assignment
+
+1. Implement backend as described (already done in this repo).
+2. Run all tests with `pytest -v` and verify they pass.
+3. Start the app and test endpoints using Swagger UI with the Authorize button.
+4. Export or screenshot your architecture diagram and reference it from this README or submit it separately.
+5. Share your GitHub repo link and (optionally) a short design explanation as requested in the assignment.
+
+
+
+
+
+
