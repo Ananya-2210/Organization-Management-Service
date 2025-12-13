@@ -6,7 +6,7 @@ Each organization gets its own isolated database, while a **master database** st
 ---
 ## Architecture Diagram
 
-![Architecture Diagram](images/architecture-diagram.png)
+![Architecture Diagram](images/Screenshot 2025-12-13 053320.png)
 
 
 
