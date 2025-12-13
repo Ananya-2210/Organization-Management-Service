@@ -6,50 +6,7 @@ Each organization gets its own isolated database, while a **master database** st
 ---
 ## Architecture Diagram
 
-flowchart TB
-A[Client/Swagger UI]
-subgraph FastAPI[FastAPI Backend]
-    B[POST /org/create]
-    C[GET /org/get]
-    D[PUT /org/update]
-    E[DELETE /org/delete]
-    F[POST /admin/login]
-    G[JWT Auth Module]
-    H[Argon2 Password Hashing]
-end
-
-subgraph MongoDB[MongoDB Cluster]
-    I[master_database]
-    J[org_Tenant1]
-    K[org_Tenant2]
-    L[org_Tenant3]
-end
-
-A -->|HTTP Requests| B
-A -->|HTTP Requests| C
-A -->|HTTP Requests| D
-A -->|HTTP Requests| E
-A -->|HTTP Requests| F
-
-B -->|Store Metadata| I
-B -->|Create DB| J
-C -->|Fetch Metadata| I
-D -->|Update Metadata| I
-D -->|Migrate Data| J
-E -->|Delete Metadata| I
-E -->|Drop DB| J
-F -->|Validate Credentials| I
-
-G -->|Return JWT Token| A
-H -->|Hash Passwords| I
-
-style A fill:#64b5f6,color:#fff
-style FastAPI fill:#fff3e0
-style MongoDB fill:#e8f5e9
-style I fill:#66bb6a,color:#fff
-style J fill:#66bb6a,color:#fff
-style K fill:#66bb6a,color:#fff
-style L fill:#66bb6a,color:#fff
+![Architecture Diagram](images/architecture-diagram.png)
 
 
 
